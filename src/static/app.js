@@ -553,6 +553,9 @@ document.addEventListener("DOMContentLoaded", () => {
         </ul>
       </div>
       <div class="activity-card-actions">
+        <button class="share-button" aria-label="Share ${name}">
+          🔗 Share
+        </button>
         ${
           currentUser
             ? `
@@ -577,6 +580,12 @@ document.addEventListener("DOMContentLoaded", () => {
       button.addEventListener("click", handleUnregister);
     });
 
+    // Add click handler for share button
+    const shareButton = activityCard.querySelector(".share-button");
+    shareButton.addEventListener("click", () => {
+      shareActivity(name, details.description);
+    });
+
     // Add click handler for register button (only when authenticated)
     if (currentUser) {
       const registerButton = activityCard.querySelector(".register-button");
@@ -588,6 +597,111 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     activitiesList.appendChild(activityCard);
+  }
+
+  // Share an activity using the Web Share API (mobile) or a fallback menu
+  function shareActivity(name, description) {
+    const shareUrl = `${window.location.origin}${window.location.pathname}?activity=${encodeURIComponent(name)}`;
+    const shareTitle = `Join ${name} at Mergington High School`;
+
+    if (navigator.share) {
+      navigator.share({
+        title: shareTitle,
+        text: description,
+        url: shareUrl,
+      }).catch((error) => {
+        if (error.name !== "AbortError") {
+          console.error("Error sharing:", error);
+        }
+      });
+    } else {
+      showShareMenu(name, shareUrl, shareTitle, description);
+    }
+  }
+
+  // Show a share menu when the Web Share API is unavailable
+  function showShareMenu(activityName, shareUrl, shareTitle, shareText) {
+    const existingMenu = document.getElementById("share-menu");
+    if (existingMenu) {
+      existingMenu.remove();
+    }
+
+    // Build the menu structure without user data in innerHTML to prevent XSS
+    const menu = document.createElement("div");
+    menu.id = "share-menu";
+    menu.className = "share-menu";
+    menu.innerHTML = `
+      <div class="share-menu-content">
+        <span class="share-menu-close" aria-label="Close">&times;</span>
+        <h4></h4>
+        <div class="share-options">
+          <button class="share-option" id="share-copy">📋 Copy Link</button>
+          <a class="share-option" target="_blank" rel="noopener noreferrer">💬 WhatsApp</a>
+          <a class="share-option" target="_blank" rel="noopener noreferrer">🐦 Twitter/X</a>
+          <a class="share-option">✉️ Email</a>
+        </div>
+      </div>
+    `;
+
+    // Set text and href values programmatically to avoid XSS
+    menu.querySelector("h4").textContent = `Share "${activityName}"`;
+    const [whatsappLink, twitterLink, emailLink] = menu.querySelectorAll("a.share-option");
+    whatsappLink.href = `https://wa.me/?text=${encodeURIComponent(shareTitle + "\n" + shareUrl)}`;
+    twitterLink.href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTitle)}&url=${encodeURIComponent(shareUrl)}`;
+    emailLink.href = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareText + "\n\n" + shareUrl)}`;
+
+    document.body.appendChild(menu);
+    setTimeout(() => menu.classList.add("show"), 10);
+
+    menu.querySelector("#share-copy").addEventListener("click", () => {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          showMessage("Link copied to clipboard!", "success");
+          closeShareMenu();
+        }).catch(() => {
+          fallbackCopyText(shareUrl);
+        });
+      } else {
+        fallbackCopyText(shareUrl);
+      }
+    });
+
+    menu.querySelector(".share-menu-close").addEventListener("click", closeShareMenu);
+    menu.addEventListener("click", (e) => {
+      if (e.target === menu) {
+        closeShareMenu();
+      }
+    });
+  }
+
+  // Fallback copy for browsers without Clipboard API
+  function fallbackCopyText(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      // execCommand is deprecated but used here as a last-resort fallback
+      // for very old browsers that lack the Clipboard API
+      document.execCommand("copy");
+      showMessage("Link copied to clipboard!", "success");
+    } catch {
+      showMessage("Could not copy link. Please copy it manually.", "error");
+    }
+    document.body.removeChild(textArea);
+    closeShareMenu();
+  }
+
+  // Close the share menu
+  function closeShareMenu() {
+    const menu = document.getElementById("share-menu");
+    if (menu) {
+      menu.classList.remove("show");
+      setTimeout(() => menu.remove(), 300);
+    }
   }
 
   // Event listeners for search and filter

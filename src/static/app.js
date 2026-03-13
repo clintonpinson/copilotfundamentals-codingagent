@@ -35,6 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const categoryFilters = document.querySelectorAll(".category-filter");
   const dayFilters = document.querySelectorAll(".day-filter");
   const timeFilters = document.querySelectorAll(".time-filter");
+  const difficultyFilters = document.querySelectorAll(".difficulty-filter");
 
   // Authentication elements
   const loginButton = document.getElementById("login-button");
@@ -61,6 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let searchQuery = "";
   let currentDay = "";
   let currentTimeRange = "";
+  let currentDifficulty = "";
 
   // Authentication state
   let currentUser = null;
@@ -117,6 +119,22 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     fetchActivities();
+  }
+
+  // Function to set difficulty filter
+  function setDifficultyFilter(difficulty) {
+    currentDifficulty = difficulty;
+
+    // Update active class
+    difficultyFilters.forEach((btn) => {
+      if (btn.dataset.difficulty === difficulty) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+    });
+
+    displayFilteredActivities();
   }
 
   // Check if user is already logged in (from localStorage)
@@ -458,6 +476,19 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
+      // Apply difficulty filter
+      if (currentDifficulty) {
+        // A specific difficulty level is selected: show only activities with that level
+        if (details.difficulty !== currentDifficulty) {
+          return;
+        }
+      } else {
+        // "All Levels" is selected: show only activities with no difficulty specified
+        if (details.difficulty) {
+          return;
+        }
+      }
+
       // Apply search filter
       const searchableContent = [
         name.toLowerCase(),
@@ -659,6 +690,13 @@ document.addEventListener("DOMContentLoaded", () => {
       // Update current time filter and fetch activities
       currentTimeRange = button.dataset.time;
       fetchActivities();
+    });
+  });
+
+  // Add event listeners for difficulty filter buttons
+  difficultyFilters.forEach((button) => {
+    button.addEventListener("click", () => {
+      setDifficultyFilter(button.dataset.difficulty);
     });
   });
 
@@ -880,6 +918,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.activityFilters = {
     setDayFilter,
     setTimeRangeFilter,
+    setDifficultyFilter,
   };
 
   // Initialize app
